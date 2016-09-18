@@ -18,6 +18,7 @@ using Windows.Foundation.Collections;
 using Windows.Media.Capture;
 using Windows.Media.MediaProperties;
 using Windows.Storage.Streams;
+using Windows.UI.Notifications;
 using Windows.UI.Popups;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
@@ -25,7 +26,6 @@ using Windows.UI.Xaml.Controls.Primitives;
 using Windows.UI.Xaml.Data;
 using Windows.UI.Xaml.Input;
 using Windows.UI.Xaml.Media;
-using Windows.UI.Xaml.Navigation;
 
 // 空白ページのアイテム テンプレートについては、http://go.microsoft.com/fwlink/?LinkId=402352&clcid=0x409 を参照してください
 
@@ -137,6 +137,7 @@ namespace SmileClassifier
 
         private async void captureElement_Tapped(object sender, TappedRoutedEventArgs e)
         {
+            textStatus.Text = "判定中...";
             if (_mediaCapture.VideoDeviceController.FocusControl.Supported)
             {
                 await _mediaCapture.VideoDeviceController.FocusControl.FocusAsync();
@@ -195,8 +196,8 @@ namespace SmileClassifier
                     var jsonResult = await response.Content.ReadAsStringAsync();
                     var jObj = JObject.Parse(jsonResult);
                     var label = jObj.SelectToken("Results.output1[0]['Scored Labels']").Value<string>();
-                        //.SelectToken("Scored Labels");
-                    Debug.WriteLine(label);
+                    Debug.WriteLine("判定結果 = " + label);
+                    textStatus.Text = "判定結果 = "+label;
                 }
             }
             else

@@ -10,5 +10,6 @@
     <Grid Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
         <CaptureElement x:Name="captureElement" Width="600" Height="400" Tapped="captureElement_Tapped">
         </CaptureElement>
+        <TextBlock x:Name="textStatus" HorizontalAlignment="Left" Margin="10,10,0,0" TextWrapping="Wrap" Text="TextBlock" VerticalAlignment="Top" FontSize="48" Foreground="Red"/>
     </Grid>
 </Page>
