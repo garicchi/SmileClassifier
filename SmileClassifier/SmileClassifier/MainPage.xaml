@@ -8,7 +8,7 @@
     mc:Ignorable="d">
 
     <Grid Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
-        <CaptureElement x:Name="captureElement" Width="600" Height="400">
+        <CaptureElement x:Name="captureElement" Width="600" Height="400" Tapped="captureElement_Tapped">
         </CaptureElement>
     </Grid>
 </Page>
