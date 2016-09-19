@@ -43,7 +43,7 @@ namespace ImageCollector
 
         private static async Task writeFaceFeaturesAsync(StreamWriter writer,string searchWord,string label)
         {
-            var images = await getSearchImageAsync("笑顔");
+            var images = await getSearchImageAsync(searchWord);
             foreach (var url in images)
             {
                 try
@@ -54,7 +54,7 @@ namespace ImageCollector
                     foreach (var face in faces)
                     {
                         var features = getFaceFeature(face);
-                        writer.WriteLine(string.Join(",", features) + ",smile");
+                        writer.WriteLine(string.Join(",", features) + ","+label);
                         Console.WriteLine("detect feature {0}", url);
                     }
                 }
