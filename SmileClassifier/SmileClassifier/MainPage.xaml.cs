@@ -38,7 +38,9 @@ namespace SmileClassifier
         //Webカメラのキャプチャをするクラス
         MediaCapture _mediaCapture;
         MediaCaptureInitializationSettings setting;
-        string apiKey = "275f7ae3c0ca42fda3eca8bee0956fad";
+        string _faceApiKey = "275f7ae3c0ca42fda3eca8bee0956fad";
+        string _mlApiKey = "vdONRbDzchAzdzlmr+MGez+xw67O0uPIrMng1FrKMOiZlr5sWSHus7Ja+NQiDubDc7BrxattCi2fnDGPyCxvYA==";
+        string _mlWebUrl = "https://asiasoutheast.services.azureml.net/subscriptions/25116a6966a94419a84024e51e3fc3ee/services/23115b24669d401b936a44901a754c25/execute?api-version=2.0&format=swagger";
 
         public MainPage()
         {
@@ -61,7 +63,7 @@ namespace SmileClassifier
             //アプリが再開したら
             Application.Current.Resuming += async (s, e) =>
             {
-                //サイドWebカメラを起動する
+                //再度Webカメラを起動する
                 await InitializeMediaCapture();
             };
         }
@@ -75,7 +77,7 @@ namespace SmileClassifier
                 {
                     //デバイス一覧からビデオキャプチャーができるデバイスを取得する
                     DeviceInformationCollection devices = await DeviceInformation.FindAllAsync(DeviceClass.VideoCapture);
-                    DeviceInformation cameraId = devices.ElementAt(1);
+                    DeviceInformation cameraId = devices.ElementAt(0);
                     //設定に取得したカメラデバイスのIDを登録する
                     setting = new MediaCaptureInitializationSettings();
                     setting.VideoDeviceId = cameraId.Id;
@@ -138,10 +140,6 @@ namespace SmileClassifier
         private async void captureElement_Tapped(object sender, TappedRoutedEventArgs e)
         {
             textStatus.Text = "判定中...";
-            if (_mediaCapture.VideoDeviceController.FocusControl.Supported)
-            {
-                await _mediaCapture.VideoDeviceController.FocusControl.FocusAsync();
-            }
             
             var list = _mediaCapture.VideoDeviceController.GetMediaStreamProperties(MediaStreamType.VideoPreview).Properties.ToList();
             var stream = new InMemoryRandomAccessStream();
@@ -151,7 +149,7 @@ namespace SmileClassifier
             await _mediaCapture.CapturePhotoToStreamAsync(prop, stream);
             stream.Seek(0);
 
-            var faceClient = new FaceServiceClient(apiKey);
+            var faceClient = new FaceServiceClient(_faceApiKey);
             var faces = await faceClient.DetectAsync(stream.AsStream(), true, true);
             if (faces.Count() > 0)
             {
@@ -159,45 +157,32 @@ namespace SmileClassifier
                 var paramList = getFaceFeature(face);
                 using (var client = new HttpClient())
                 {
-                    StringBuilder sb = new StringBuilder();
-                    StringWriter sw = new StringWriter(sb);
-
-                    using (var w = new JsonTextWriter(sw))
+                    var parameter = new
                     {
-                        w.WriteStartObject();
-                        w.WritePropertyName("Inputs");
-                        w.WriteStartObject();
-                        w.WritePropertyName("input1");
-                        w.WriteStartArray();
-                        w.WriteStartObject();
-                        for (int i = 0; i < paramList.Count; i++)
+                        Inputs = new
                         {
-                            w.WritePropertyName("param" + (i+1));
-                            w.WriteValue(paramList[i]);
-                        }
-                        w.WritePropertyName("label");
-                        w.WriteValue("null");
-                        w.WriteEndObject();
-
-                        w.WriteEndArray();
-                        w.WriteEndObject();
-                        w.WritePropertyName("GlobalParameters");
-                        w.WriteStartObject();
-                        w.WriteEndObject();
-                        w.WriteEndObject();
+                            input1 = new[]
+                            {
+                                new Dictionary<string,string>()
+                            }
+                        },
+                        GlobalParameters = new { }
+                    };
+                    for (int i = 0; i < paramList.Count; i++)
+                    {
+                        parameter.Inputs.input1[0].Add("param" + (i+1), paramList[i].ToString());
                     }
-                    var json = sb.ToString();
-
-                    var apiKey = "vdONRbDzchAzdzlmr+MGez+xw67O0uPIrMng1FrKMOiZlr5sWSHus7Ja+NQiDubDc7BrxattCi2fnDGPyCxvYA=="; // Replace this with the API key for the web service
-                    var requestUrl = "https://asiasoutheast.services.azureml.net/subscriptions/25116a6966a94419a84024e51e3fc3ee/services/23115b24669d401b936a44901a754c25/execute?api-version=2.0&format=swagger";
-                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
+                    parameter.Inputs.input1[0].Add("label", "");
+                    var json = JsonConvert.SerializeObject(parameter);
+                    
+                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _mlApiKey);
                     var content = new StringContent(json,Encoding.UTF8,"applicaton/json");
-                    var response = await client.PostAsync(requestUrl, content);
+                    var response = await client.PostAsync(_mlWebUrl, content);
                     var jsonResult = await response.Content.ReadAsStringAsync();
                     var jObj = JObject.Parse(jsonResult);
                     var label = jObj.SelectToken("Results.output1[0]['Scored Labels']").Value<string>();
-                    Debug.WriteLine("判定結果 = " + label);
                     textStatus.Text = "判定結果 = "+label;
+
                 }
             }
             else
@@ -205,8 +190,6 @@ namespace SmileClassifier
                 var dialog = new MessageDialog("顔検出に失敗しました");
                 await dialog.ShowAsync();
             }
-
-            
 
         }
     }
