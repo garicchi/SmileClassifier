@@ -16,69 +16,53 @@ namespace ImageCollector
 {
     class Program
     {
-        static string bingApiKey = "6b92b8aafcf4408fbab7ba3bab0550c8";
-        static string faceApiKey = "275f7ae3c0ca42fda3eca8bee0956fad";
+        static string _bingApiKey = "6b92b8aafcf4408fbab7ba3bab0550c8";
+        static string _faceApiKey = "275f7ae3c0ca42fda3eca8bee0956fad";
+
         static void Main(string[] args)
         {
             var start = DateTime.Now;
             var learnDataPath = "data.csv";
-            Task.Run(async () =>
+
+            using (var writer = new StreamWriter(learnDataPath, false, Encoding.UTF8))
             {
-
-                using (var writer = new StreamWriter(learnDataPath, false, Encoding.UTF8))
+                for (int i = 1; i <= 12; i++)
                 {
-                    for(int i = 1; i <= 12; i++)
-                    {
-                        writer.Write(string.Format("param{0},",i));
-                    }
-                    writer.WriteLine("label");
-                    var smileImages = await getSearchImageAsync("笑顔");
-                    foreach (var url in smileImages)
-                    {
-                        try
-                        {
-                            var client = new FaceServiceClient(faceApiKey);
-                            var faces = await client.DetectAsync(url, true, true);
-                            await Task.Delay(4000);
-                            foreach (var face in faces)
-                            {
-                                var features = getFaceFeature(face);
-                                writer.WriteLine(string.Join(",", features) + ",smile");
-                                Console.WriteLine("detect feature {0}", url);
-                            }
-                        }
-                        catch (FaceAPIException e)
-                        {
-                            Console.WriteLine("face expception");
-                        }
-                    }
+                    writer.Write(string.Format("param{0},", i));
+                }
+                writer.WriteLine("label");
 
-                    var angryImages = await getSearchImageAsync("怒り 写真");
-                    foreach (var url in angryImages)
+                writeFaceFeaturesAsync(writer,"笑顔","smile").Wait();
+                writeFaceFeaturesAsync(writer, "怒り 写真", "angry").Wait();
+                
+            }
+            
+            Console.WriteLine("elapsed time {0}", (DateTime.Now - start).ToString());
+            Console.ReadKey();
+        }
+
+        private static async Task writeFaceFeaturesAsync(StreamWriter writer,string searchWord,string label)
+        {
+            var images = await getSearchImageAsync("笑顔");
+            foreach (var url in images)
+            {
+                try
+                {
+                    var client = new FaceServiceClient(_faceApiKey);
+                    var faces = await client.DetectAsync(url, true, true);
+                    await Task.Delay(4000);
+                    foreach (var face in faces)
                     {
-                        try
-                        {
-                            var client = new FaceServiceClient(faceApiKey);
-                            var faces = await client.DetectAsync(url, true, true);
-                            await Task.Delay(4000);
-                            foreach (var face in faces)
-                            {
-                                var features = getFaceFeature(face);
-                                writer.WriteLine(string.Join(",", features) + ",angry");
-                                Console.WriteLine("detect feature {0}", url);
-                            }
-                        }
-                        catch (FaceAPIException e)
-                        {
-                            Console.WriteLine("face expception");
-                        }
+                        var features = getFaceFeature(face);
+                        writer.WriteLine(string.Join(",", features) + ",smile");
+                        Console.WriteLine("detect feature {0}", url);
                     }
                 }
-
-            }).Wait();
-            Console.WriteLine();
-            Console.WriteLine("elapsed time {0}",(DateTime.Now - start).ToString());
-            Console.ReadKey();
+                catch (FaceAPIException e)
+                {
+                    Console.WriteLine("face expception "+e.Message);
+                }
+            }
         }
 
         private static async Task<List<string>> getSearchImageAsync(string searchWord)
@@ -86,7 +70,7 @@ namespace ImageCollector
             var images = new List<string>();
             using (var client = new HttpClient())
             {
-                client.DefaultRequestHeaders.Add("Ocp-Apim-Subscription-Key", bingApiKey);
+                client.DefaultRequestHeaders.Add("Ocp-Apim-Subscription-Key", _bingApiKey);
 
                 int count = 150;
                 for (int offset = 0; offset <= 300; offset += count)
@@ -105,7 +89,7 @@ namespace ImageCollector
                     await Task.Delay(400);
                 }
             }
-                
+
             return images;
         }
 
