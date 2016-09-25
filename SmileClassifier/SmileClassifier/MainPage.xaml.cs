@@ -53,7 +53,7 @@ namespace SmileClassifier
         public MainPage()
         {
             this.InitializeComponent();
-
+            
             //ページがロードされたら
             this.Loaded += async (sender, arg) =>
             {
@@ -82,25 +82,18 @@ namespace SmileClassifier
             //UIスレッドで実行する
             await Dispatcher.RunAsync(Windows.UI.Core.CoreDispatcherPriority.Normal, async () =>
             {
-                try
-                {
-                    //デバイス一覧からビデオキャプチャーができるデバイスを取得する
-                    var devices = await DeviceInformation.FindAllAsync(DeviceClass.VideoCapture);
-                    var cameraId = devices.ElementAt(0);
-                    //設定に取得したカメラデバイスのIDを登録する
-                    setting = new MediaCaptureInitializationSettings();
-                    setting.VideoDeviceId = cameraId.Id;
+                //デバイス一覧からビデオキャプチャーができるデバイスを取得する
+                var devices = await DeviceInformation.FindAllAsync(DeviceClass.VideoCapture);
+                var cameraId = devices.ElementAt(0);
+                //設定に取得したカメラデバイスのIDを登録する
+                setting = new MediaCaptureInitializationSettings();
+                setting.VideoDeviceId = cameraId.Id;
 
-                    //Webカメラのキャプチャーを起動する
-                    _mediaCapture = new MediaCapture();
-                    await _mediaCapture.InitializeAsync(setting);
-                    captureElement.Source = _mediaCapture;
-                    await _mediaCapture.StartPreviewAsync();
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine(ex.Message);
-                }
+                //Webカメラのキャプチャーを起動する
+                _mediaCapture = new MediaCapture();
+                await _mediaCapture.InitializeAsync(setting);
+                captureElement.Source = _mediaCapture;
+                await _mediaCapture.StartPreviewAsync();
             });
         }
 
@@ -111,7 +104,7 @@ namespace SmileClassifier
             _switchPin.SetDriveMode(GpioPinDriveMode.Input);
             _ledPin = _gpioController.OpenPin(_ledPinId);
             _ledPin.SetDriveMode(GpioPinDriveMode.Output);
-            
+
             _switchPin.ValueChanged += async(sender, arg) =>
             {
                 var pinValue = _switchPin.Read();
