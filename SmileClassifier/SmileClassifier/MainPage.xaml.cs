@@ -13,11 +13,13 @@ using System.Runtime.InteropServices.WindowsRuntime;
 using System.Text;
 using System.Threading.Tasks;
 using Windows.Devices.Enumeration;
+using Windows.Devices.Gpio;
 using Windows.Foundation;
 using Windows.Foundation.Collections;
 using Windows.Media.Capture;
 using Windows.Media.MediaProperties;
 using Windows.Storage.Streams;
+using Windows.UI.Core;
 using Windows.UI.Notifications;
 using Windows.UI.Popups;
 using Windows.UI.Xaml;
@@ -42,18 +44,25 @@ namespace SmileClassifier
         string _mlApiKey = "vdONRbDzchAzdzlmr+MGez+xw67O0uPIrMng1FrKMOiZlr5sWSHus7Ja+NQiDubDc7BrxattCi2fnDGPyCxvYA==";
         string _mlWebUrl = "https://asiasoutheast.services.azureml.net/subscriptions/25116a6966a94419a84024e51e3fc3ee/services/23115b24669d401b936a44901a754c25/execute?api-version=2.0&format=swagger";
 
+        GpioController _gpioController;
+        GpioPin _switchPin;
+        GpioPin _ledPin;
+        int _switchPinId = 21;
+        int _ledPinId = 20;
+
         public MainPage()
         {
             this.InitializeComponent();
 
             //ページがロードされたら
-            this.Loaded += async (s, e) =>
+            this.Loaded += async (sender, arg) =>
             {
-                await InitializeMediaCapture();
+                await InitCameraAsync();
+                InitGpio();
             };
 
             //アプリが一時停止したら
-            Application.Current.Suspending += async (s, e) =>
+            Application.Current.Suspending += async (sender, arg) =>
             {
                 //Webカメラのキャプチャを止める
                 await _mediaCapture.StopPreviewAsync();
@@ -61,14 +70,14 @@ namespace SmileClassifier
             };
 
             //アプリが再開したら
-            Application.Current.Resuming += async (s, e) =>
+            Application.Current.Resuming += async (sender, arg) =>
             {
                 //再度Webカメラを起動する
-                await InitializeMediaCapture();
+                await InitCameraAsync();
             };
         }
 
-        private async Task InitializeMediaCapture()
+        private async Task InitCameraAsync()
         {
             //UIスレッドで実行する
             await Dispatcher.RunAsync(Windows.UI.Core.CoreDispatcherPriority.Normal, async () =>
@@ -76,8 +85,8 @@ namespace SmileClassifier
                 try
                 {
                     //デバイス一覧からビデオキャプチャーができるデバイスを取得する
-                    DeviceInformationCollection devices = await DeviceInformation.FindAllAsync(DeviceClass.VideoCapture);
-                    DeviceInformation cameraId = devices.ElementAt(0);
+                    var devices = await DeviceInformation.FindAllAsync(DeviceClass.VideoCapture);
+                    var cameraId = devices.ElementAt(0);
                     //設定に取得したカメラデバイスのIDを登録する
                     setting = new MediaCaptureInitializationSettings();
                     setting.VideoDeviceId = cameraId.Id;
@@ -93,6 +102,43 @@ namespace SmileClassifier
                     Debug.WriteLine(ex.Message);
                 }
             });
+        }
+
+        private void InitGpio()
+        {
+            _gpioController = GpioController.GetDefault();
+            _switchPin = _gpioController.OpenPin(_switchPinId);
+            _switchPin.SetDriveMode(GpioPinDriveMode.Input);
+            _ledPin = _gpioController.OpenPin(_ledPinId);
+            _ledPin.SetDriveMode(GpioPinDriveMode.Output);
+            
+            _switchPin.ValueChanged += async(sender, arg) =>
+            {
+                var pinValue = _switchPin.Read();
+                if(pinValue == GpioPinValue.Low)
+                {
+                    await Dispatcher.RunAsync(CoreDispatcherPriority.Normal,async()=>
+                    {
+                        textStatus.Text = "判定中...";
+                        _ledPin.Write(GpioPinValue.Low);
+                        var label = await judgeSmileFaceAsync();
+
+                        if (label == string.Empty)
+                        {
+                            textStatus.Text = "顔検出に失敗しました";
+                        }
+                        else if (label == "angry")
+                        {
+                            textStatus.Text = "判定結果 = 怒り顔";
+                        }
+                        else if (label == "smile")
+                        {
+                            textStatus.Text = "判定結果 = 笑顔";
+                            _ledPin.Write(GpioPinValue.High);
+                        }
+                    });
+                }
+            };
         }
 
         private static List<double> getFaceFeature(Face face)
@@ -136,14 +182,13 @@ namespace SmileClassifier
 
         }
 
-
-        private async void captureElement_Tapped(object sender, TappedRoutedEventArgs e)
+        private async Task<string> judgeSmileFaceAsync()
         {
-            textStatus.Text = "判定中...";
-            
+            var result = string.Empty;
             var list = _mediaCapture.VideoDeviceController.GetMediaStreamProperties(MediaStreamType.VideoPreview).Properties.ToList();
             var stream = new InMemoryRandomAccessStream();
             var prop = ImageEncodingProperties.CreatePng();
+            
             prop.Width = (uint)captureElement.ActualWidth;
             prop.Height = (uint)captureElement.ActualHeight;
             await _mediaCapture.CapturePhotoToStreamAsync(prop, stream);
@@ -151,46 +196,44 @@ namespace SmileClassifier
 
             var faceClient = new FaceServiceClient(_faceApiKey);
             var faces = await faceClient.DetectAsync(stream.AsStream(), true, true);
-            if (faces.Count() > 0)
+            if (faces.Count() == 0)
             {
-                var face = faces.First();
-                var paramList = getFaceFeature(face);
-                using (var client = new HttpClient())
+                return result;
+            }
+            
+            var face = faces.First();
+            var paramList = getFaceFeature(face);
+            using (var client = new HttpClient())
+            {
+                var parameter = new
                 {
-                    var parameter = new
+                    Inputs = new
                     {
-                        Inputs = new
+                        input1 = new[]
                         {
-                            input1 = new[]
-                            {
-                                new Dictionary<string,string>()
-                            }
-                        },
-                        GlobalParameters = new { }
-                    };
-                    for (int i = 0; i < paramList.Count; i++)
-                    {
-                        parameter.Inputs.input1[0].Add("param" + (i+1), paramList[i].ToString());
-                    }
-                    parameter.Inputs.input1[0].Add("label", "");
-                    var json = JsonConvert.SerializeObject(parameter);
-                    
-                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _mlApiKey);
-                    var content = new StringContent(json,Encoding.UTF8,"applicaton/json");
-                    var response = await client.PostAsync(_mlWebUrl, content);
-                    var jsonResult = await response.Content.ReadAsStringAsync();
-                    var jObj = JObject.Parse(jsonResult);
-                    var label = jObj.SelectToken("Results.output1[0]['Scored Labels']").Value<string>();
-                    textStatus.Text = "判定結果 = "+label;
-
+                            new Dictionary<string,string>()
+                        }
+                    },
+                    GlobalParameters = new { }
+                };
+                for (int i = 0; i < paramList.Count; i++)
+                {
+                    parameter.Inputs.input1[0].Add("param" + (i + 1), paramList[i].ToString());
                 }
-            }
-            else
-            {
-                var dialog = new MessageDialog("顔検出に失敗しました");
-                await dialog.ShowAsync();
-            }
+                parameter.Inputs.input1[0].Add("label", "");
+                var json = JsonConvert.SerializeObject(parameter);
 
+                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _mlApiKey);
+                var content = new StringContent(json, Encoding.UTF8, "applicaton/json");
+                var response = await client.PostAsync(_mlWebUrl, content);
+                var jsonResult = await response.Content.ReadAsStringAsync();
+                var jObj = JObject.Parse(jsonResult);
+                var label = jObj.SelectToken("Results.output1[0]['Scored Labels']").Value<string>();
+                result = label;
+                
+            }
+            return result;
+                
         }
     }
 }
