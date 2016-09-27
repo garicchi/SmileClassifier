@@ -34,18 +34,24 @@ namespace SmileClassifier
 
     public sealed partial class MainPage : Page
     {
-
-        //Webカメラのキャプチャをするクラス
+        
         MediaCapture _mediaCapture;
         MediaCaptureInitializationSettings setting;
+
+        //Cognitive Service Face APIのAPI Keyを入れる
         string _faceApiKey = "275f7ae3c0ca42fda3eca8bee0956fad";
+        //デプロイしたAzure Machine LearningのWeb APIのAPI Keyを入れる
         string _mlApiKey = "vdONRbDzchAzdzlmr+MGez+xw67O0uPIrMng1FrKMOiZlr5sWSHus7Ja+NQiDubDc7BrxattCi2fnDGPyCxvYA==";
+        //デプロイしたAzure Machine LearningのWeb APIのURLを入れる
         string _mlWebUrl = "https://asiasoutheast.services.azureml.net/subscriptions/25116a6966a94419a84024e51e3fc3ee/services/23115b24669d401b936a44901a754c25/execute?api-version=2.0&format=swagger";
 
         GpioController _gpioController;
         GpioPin _switchPin;
         GpioPin _ledPin;
+
+        //タクトスイッチをつなげたラズパイのGPIOピン番号を入れる
         int _switchPinId = 21;
+        //LEDをつなげたラズパイのGPIOピン番号を入れる
         int _ledPinId = 20;
 
         public MainPage()
@@ -55,6 +61,7 @@ namespace SmileClassifier
             //ページがロードされたら
             this.Loaded += async (sender, arg) =>
             {
+                //初期化
                 await InitCameraAsync();
                 InitGpio();
             };
@@ -75,6 +82,7 @@ namespace SmileClassifier
             };
         }
 
+        //Webカメラを初期化する
         private async Task InitCameraAsync()
         {
             //UIスレッドで実行する
@@ -95,6 +103,7 @@ namespace SmileClassifier
             });
         }
 
+        //ラズパイのGPIOを初期化する
         private void InitGpio()
         {
             _gpioController = GpioController.GetDefault();
@@ -103,15 +112,19 @@ namespace SmileClassifier
             _ledPin = _gpioController.OpenPin(_ledPinId);
             _ledPin.SetDriveMode(GpioPinDriveMode.Output);
 
+            //スイッチにつなげたピンの電圧に変化があったなら
             _switchPin.ValueChanged += async(sender, arg) =>
             {
+                //ピンの電圧がHighかLowを取得する
                 var pinValue = _switchPin.Read();
+                //Lowならスイッチが押されたので判定
                 if(pinValue == GpioPinValue.Low)
                 {
                     await Dispatcher.RunAsync(CoreDispatcherPriority.Normal,async()=>
                     {
                         textStatus.Text = "判定中...";
                         _ledPin.Write(GpioPinValue.Low);
+                        //笑顔判定をする
                         var label = await judgeSmileFaceAsync();
 
                         if (label == string.Empty)
@@ -125,6 +138,7 @@ namespace SmileClassifier
                         else if (label == "smile")
                         {
                             textStatus.Text = "判定結果 = 笑顔";
+                            //LEDを点灯させる
                             _ledPin.Write(GpioPinValue.High);
                         }
                     });
@@ -132,50 +146,33 @@ namespace SmileClassifier
             };
         }
 
+        //顔の特徴点を比率に変換する
         private static List<double> getFaceFeature(Face face)
         {
             var result = new List<double>();
             var marks = face.FaceLandmarks;
-
-            //Topから目までの長さの顔の長さとの比
-            result.Add((marks.EyeRightTop.Y - face.FaceRectangle.Top) / face.FaceRectangle.Height);
-            //目から鼻までの長さの顔の長さとの比
-            result.Add((marks.NoseTip.Y - marks.EyeRightTop.Y) / face.FaceRectangle.Height);
-            //鼻から顎までの長さの顔の長さとの比
-            result.Add((face.FaceRectangle.Top + face.FaceRectangle.Height - marks.NoseTip.Y)
-                / face.FaceRectangle.Height);
-            //下唇の位置の鼻から顎までの長さとの比(上)
-            result.Add((marks.UnderLipBottom.Y - marks.NoseTip.Y)
-                / (face.FaceRectangle.Top + face.FaceRectangle.Height - marks.NoseTip.Y));
-            //下唇の位置の鼻から顎までの長さとの比(下)
-            result.Add((face.FaceRectangle.Top + face.FaceRectangle.Height - marks.UnderLipBottom.Y)
-                / (face.FaceRectangle.Top + face.FaceRectangle.Height - marks.NoseTip.Y));
-            //唇の位置の鼻から顎までの長さとの比(上)
-            result.Add((marks.MouthRight.Y - marks.NoseTip.Y)
-                / (face.FaceRectangle.Top + face.FaceRectangle.Height - marks.NoseTip.Y));
-            //唇の位置の鼻から顎までの長さとの比(下)
-            result.Add((face.FaceRectangle.Top + face.FaceRectangle.Height - marks.MouthRight.Y)
-                / (face.FaceRectangle.Top + face.FaceRectangle.Height - marks.NoseTip.Y));
-
-            //左耳から左目までの顔の横幅との比
-            result.Add((marks.EyeLeftOuter.X - face.FaceRectangle.Left) / face.FaceRectangle.Width);
-            //左目の幅の顔の横幅との比
-            result.Add((marks.EyeLeftInner.X - marks.EyeLeftOuter.X) / face.FaceRectangle.Width);
-            //目の間の顔の横幅との比
-            result.Add((marks.EyeRightInner.X - marks.EyeLeftInner.X) / face.FaceRectangle.Width);
-            //右目の幅の顔の横幅との比
-            result.Add((marks.EyeRightOuter.X - marks.EyeRightInner.X) / face.FaceRectangle.Width);
-            //右目から右耳までの顔の横幅との比
-            result.Add((face.FaceRectangle.Left + face.FaceRectangle.Width - marks.EyeRightOuter.X) 
-                / face.FaceRectangle.Width);
+            //左目の眉毛から目までの長さの顔の長さとの比
+            result.Add((marks.EyeLeftInner.Y - marks.EyebrowLeftInner.Y) / face.FaceRectangle.Height);
+            //右目の眉毛から目までの長さの顔の長さとの比
+            result.Add((marks.EyeRightInner.Y - marks.EyebrowRightInner.Y) / face.FaceRectangle.Height);
+            //左目の縦向きの長さの顔の長さとの比
+            result.Add((marks.EyeLeftBottom.Y - marks.EyeLeftTop.Y) / face.FaceRectangle.Height);
+            //右目の縦向きの長さの顔の長さとの比
+            result.Add((marks.EyeRightBottom.Y - marks.EyeRightTop.Y) / face.FaceRectangle.Height);
+            //上唇から下唇の長さの顔の長さとの比
+            result.Add((marks.UnderLipBottom.Y - marks.UpperLipTop.Y) / face.FaceRectangle.Height);
+            //口の幅の顔の幅との比
+            result.Add((marks.MouthRight.X - marks.MouthLeft.X) / face.FaceRectangle.Width);
 
             return result;
 
         }
 
+        //笑顔かどうかを判定する関数
         private async Task<string> judgeSmileFaceAsync()
         {
             var result = string.Empty;
+            //Webカメラから画像を取得する
             var list = _mediaCapture.VideoDeviceController.GetMediaStreamProperties(MediaStreamType.VideoPreview).Properties.ToList();
             var stream = new InMemoryRandomAccessStream();
             var prop = ImageEncodingProperties.CreatePng();
@@ -185,6 +182,7 @@ namespace SmileClassifier
             await _mediaCapture.CapturePhotoToStreamAsync(prop, stream);
             stream.Seek(0);
 
+            //Face APIを利用して顔の特徴点を取得する
             var faceClient = new FaceServiceClient(_faceApiKey);
             var faces = await faceClient.DetectAsync(stream.AsStream(), true, true);
             if (faces.Count() == 0)
@@ -193,7 +191,10 @@ namespace SmileClassifier
             }
             
             var face = faces.First();
+            //特徴点を選定する
             var paramList = getFaceFeature(face);
+
+            //デプロイしたAzure Machine LearningのWeb APIを利用して笑顔判定を行う
             using (var client = new HttpClient())
             {
                 var parameter = new
