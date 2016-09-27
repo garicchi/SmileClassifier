@@ -51,35 +51,7 @@ namespace ImageCollector
         //指定の検索ワードを用いて画像検索し、特徴データをファイルに書き込む
         private static async Task writeFaceFeaturesAsync(StreamWriter writer,string searchWord,string label)
         {
-            //画像検索
-            var images = await getSearchImageAsync(searchWord);
-            foreach (var url in images)
-            {
-                try
-                {
-                    //Face APIで特徴点を抽出する
-                    var client = new FaceServiceClient(_faceApiKey);
-                    var faces = await client.DetectAsync(url, true, true);
-                    await Task.Delay(4000);
-                    foreach (var face in faces)
-                    {
-                        //顔のパーツ座標を比率に変換する
-                        var features = getFaceFeature(face);
-                        //ファイルに書き込む
-                        writer.WriteLine(string.Join(",", features) + ","+label);
-                        Console.WriteLine("detect feature {0}", url);
-                    }
-                }
-                catch (FaceAPIException e)
-                {
-                    Console.WriteLine("face expception "+e.Message);
-                }
-            }
-        }
-
-        //Bing Search APIを使用して画像のURLを取得する
-        private static async Task<List<string>> getSearchImageAsync(string searchWord)
-        {
+            //画像検索してURL一覧をimagesに入れる
             var images = new List<string>();
             using (var client = new HttpClient())
             {
@@ -103,7 +75,29 @@ namespace ImageCollector
                 }
             }
 
-            return images;
+            //画像のURL一覧から特徴量を抽出してファイルに書き込む
+            foreach (var url in images)
+            {
+                try
+                {
+                    //Face APIで特徴点を抽出する
+                    var client = new FaceServiceClient(_faceApiKey);
+                    var faces = await client.DetectAsync(url, true, true);
+                    await Task.Delay(4000);
+                    foreach (var face in faces)
+                    {
+                        //顔のパーツ座標を比率に変換する
+                        var features = getFaceFeature(face);
+                        //ファイルに書き込む
+                        writer.WriteLine(string.Join(",", features) + ","+label);
+                        Console.WriteLine("detect feature {0}", url);
+                    }
+                }
+                catch (FaceAPIException e)
+                {
+                    Console.WriteLine("face expception "+e.Message);
+                }
+            }
         }
 
         //顔の特徴点を比率に変換する
