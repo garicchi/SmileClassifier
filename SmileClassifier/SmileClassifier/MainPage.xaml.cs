@@ -39,11 +39,11 @@ namespace SmileClassifier
         MediaCaptureInitializationSettings setting;
 
         //Cognitive Service Face APIのAPI Keyを入れる
-        string _faceApiKey = "275f7ae3c0ca42fda3eca8bee0956fad";
+        string _faceApiKey = "{ your face api key }";
         //デプロイしたAzure Machine LearningのWeb APIのAPI Keyを入れる
-        string _mlApiKey = "vdONRbDzchAzdzlmr+MGez+xw67O0uPIrMng1FrKMOiZlr5sWSHus7Ja+NQiDubDc7BrxattCi2fnDGPyCxvYA==";
+        string _mlApiKey = "{ your azure ml web api key }";
         //デプロイしたAzure Machine LearningのWeb APIのURLを入れる
-        string _mlWebUrl = "https://asiasoutheast.services.azureml.net/subscriptions/25116a6966a94419a84024e51e3fc3ee/services/23115b24669d401b936a44901a754c25/execute?api-version=2.0&format=swagger";
+        string _mlWebUrl = "{ yout azure ml web api url }";
 
         GpioController _gpioController;
         GpioPin _switchPin;
