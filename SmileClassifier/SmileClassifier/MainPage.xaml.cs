@@ -46,7 +46,7 @@ namespace SmileClassifier
         //デプロイしたAzure Machine LearningのWeb APIのAPI Keyを入れる
         string _mlApiKey = "{ your azure ml web api key }";
         //デプロイしたAzure Machine LearningのWeb APIのURLを入れる
-        string _mlWebUrl = "{ yout azure ml web api url }";
+        string _mlWebUrl = "{ your azure ml web api url }";
 
         //タクトスイッチをつなげたラズパイのGPIOピン番号を入れる
         int _switchPinId = 21;
@@ -172,7 +172,8 @@ namespace SmileClassifier
         {
             var result = string.Empty;
             //Webカメラから画像を取得する
-            var list = _mediaCapture.VideoDeviceController.GetMediaStreamProperties(MediaStreamType.VideoPreview).Properties.ToList();
+            var list = _mediaCapture.VideoDeviceController
+                .GetMediaStreamProperties(MediaStreamType.VideoPreview).Properties.ToList();
             var stream = new InMemoryRandomAccessStream();
             var prop = ImageEncodingProperties.CreatePng();
             
@@ -186,7 +187,7 @@ namespace SmileClassifier
             var faces = await faceClient.DetectAsync(stream.AsStream(), true, true);
             if (faces.Count() == 0)
             {
-                return result;
+                return result;  //顔を検出できなかった場合string.Emptyを返す
             }
             
             var face = faces.First();
@@ -220,6 +221,7 @@ namespace SmileClassifier
                 var jsonResult = await response.Content.ReadAsStringAsync();
                 var jObj = JObject.Parse(jsonResult);
                 var label = jObj.SelectToken("Results.output1[0]['Scored Labels']").Value<string>();
+                //笑顔か怒り顔かの判定結果を返す
                 result = label;
                 
             }
