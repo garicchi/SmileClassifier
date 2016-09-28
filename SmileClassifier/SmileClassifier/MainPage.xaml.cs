@@ -37,6 +37,9 @@ namespace SmileClassifier
         
         MediaCapture _mediaCapture;
         MediaCaptureInitializationSettings setting;
+        GpioController _gpioController;
+        GpioPin _switchPin;
+        GpioPin _ledPin;
 
         //Cognitive Service Face APIのAPI Keyを入れる
         string _faceApiKey = "{ your face api key }";
@@ -44,10 +47,6 @@ namespace SmileClassifier
         string _mlApiKey = "{ your azure ml web api key }";
         //デプロイしたAzure Machine LearningのWeb APIのURLを入れる
         string _mlWebUrl = "{ yout azure ml web api url }";
-
-        GpioController _gpioController;
-        GpioPin _switchPin;
-        GpioPin _ledPin;
 
         //タクトスイッチをつなげたラズパイのGPIOピン番号を入れる
         int _switchPinId = 21;
