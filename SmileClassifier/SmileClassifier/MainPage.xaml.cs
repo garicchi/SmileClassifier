@@ -37,17 +37,16 @@ namespace SmileClassifier
         
         MediaCapture _mediaCapture;
         MediaCaptureInitializationSettings setting;
-
-        //Cognitive Service Face APIのAPI Keyを入れる
-        string _faceApiKey = "275f7ae3c0ca42fda3eca8bee0956fad";
-        //デプロイしたAzure Machine LearningのWeb APIのAPI Keyを入れる
-        string _mlApiKey = "vdONRbDzchAzdzlmr+MGez+xw67O0uPIrMng1FrKMOiZlr5sWSHus7Ja+NQiDubDc7BrxattCi2fnDGPyCxvYA==";
-        //デプロイしたAzure Machine LearningのWeb APIのURLを入れる
-        string _mlWebUrl = "https://asiasoutheast.services.azureml.net/subscriptions/25116a6966a94419a84024e51e3fc3ee/services/23115b24669d401b936a44901a754c25/execute?api-version=2.0&format=swagger";
-
         GpioController _gpioController;
         GpioPin _switchPin;
         GpioPin _ledPin;
+
+        //Cognitive Service Face APIのAPI Keyを入れる
+        string _faceApiKey = "{ your face api key }";
+        //デプロイしたAzure Machine LearningのWeb APIのAPI Keyを入れる
+        string _mlApiKey = "{ your azure ml web api key }";
+        //デプロイしたAzure Machine LearningのWeb APIのURLを入れる
+        string _mlWebUrl = "{ your azure ml web api url }";
 
         //タクトスイッチをつなげたラズパイのGPIOピン番号を入れる
         int _switchPinId = 21;
@@ -116,9 +115,9 @@ namespace SmileClassifier
             _switchPin.ValueChanged += async(sender, arg) =>
             {
                 //ピンの電圧がHighかLowを取得する
-                var pinValue = _switchPin.Read();
+                var pinValue = arg.Edge;
                 //Lowならスイッチが押されたので判定
-                if(pinValue == GpioPinValue.Low)
+                if(pinValue == GpioPinEdge.FallingEdge)
                 {
                     await Dispatcher.RunAsync(CoreDispatcherPriority.Normal,async()=>
                     {
@@ -173,7 +172,8 @@ namespace SmileClassifier
         {
             var result = string.Empty;
             //Webカメラから画像を取得する
-            var list = _mediaCapture.VideoDeviceController.GetMediaStreamProperties(MediaStreamType.VideoPreview).Properties.ToList();
+            var list = _mediaCapture.VideoDeviceController
+                .GetMediaStreamProperties(MediaStreamType.VideoPreview).Properties.ToList();
             var stream = new InMemoryRandomAccessStream();
             var prop = ImageEncodingProperties.CreatePng();
             
@@ -187,7 +187,7 @@ namespace SmileClassifier
             var faces = await faceClient.DetectAsync(stream.AsStream(), true, true);
             if (faces.Count() == 0)
             {
-                return result;
+                return result;  //顔を検出できなかった場合string.Emptyを返す
             }
             
             var face = faces.First();
@@ -221,6 +221,7 @@ namespace SmileClassifier
                 var jsonResult = await response.Content.ReadAsStringAsync();
                 var jObj = JObject.Parse(jsonResult);
                 var label = jObj.SelectToken("Results.output1[0]['Scored Labels']").Value<string>();
+                //笑顔か怒り顔かの判定結果を返す
                 result = label;
                 
             }

@@ -18,13 +18,14 @@ namespace ImageCollector
     class Program
     {
         //Cognitive Service Bing Image APIのAPI Keyを入れる
-        static string _bingApiKey = "6b92b8aafcf4408fbab7ba3bab0550c8";
+        static string _bingApiKey = "{ your bing image api key }";
         //Cognitive Service Face APIのAPI Keyを入れる
-        static string _faceApiKey = "275f7ae3c0ca42fda3eca8bee0956fad";
+        static string _faceApiKey = "{ your face api key }";
 
         static void Main(string[] args)
         {
-            var start = DateTime.Now;
+            var watch = new Stopwatch();
+            watch.Start();
             var learnDataPath = "data.csv";
 
             using (var writer = new StreamWriter(learnDataPath, false, Encoding.UTF8))
@@ -42,8 +43,9 @@ namespace ImageCollector
                 writeFaceFeaturesAsync(writer, "怒り 写真", "angry").Wait();
                 
             }
-            
-            Console.WriteLine("elapsed time {0}", (DateTime.Now - start).ToString());
+
+            watch.Stop();
+            Console.WriteLine("elapsed time {0}", watch.Elapsed);
             Console.WriteLine("Complete!");
             Console.ReadKey();
         }
@@ -51,8 +53,34 @@ namespace ImageCollector
         //指定の検索ワードを用いて画像検索し、特徴データをファイルに書き込む
         private static async Task writeFaceFeaturesAsync(StreamWriter writer,string searchWord,string label)
         {
-            //画像検索
-            var images = await getSearchImageAsync(searchWord);
+            //画像検索してURL一覧をimagesに入れる
+            var images = new List<string>();
+            using (var client = new HttpClient())
+            {
+                client.DefaultRequestHeaders.Add("Ocp-Apim-Subscription-Key", _bingApiKey);
+
+                int count = 150;
+                for (int offset = 0; offset <= 300; offset += count)
+                {
+                    var uri = "https://api.cognitive.microsoft.com/bing/v5.0/images/search"
+                        + "?q=" + searchWord
+                        + "&count=" + count
+                        + "&offset=" + offset
+                        + "&mkt=ja-JP";
+
+                    var response = await client.GetAsync(uri);
+                    var json = await response.Content.ReadAsStringAsync();
+                    var jObj = JObject.Parse(json);
+                    JToken values = jObj.SelectToken("value");
+                    foreach (var val in values)
+                    {
+                        images.Add(val["contentUrl"].ToString());
+                    }
+                    await Task.Delay(400);
+                }
+            }
+
+            //画像のURL一覧から特徴量を抽出してファイルに書き込む
             foreach (var url in images)
             {
                 try
@@ -75,35 +103,6 @@ namespace ImageCollector
                     Console.WriteLine("face expception "+e.Message);
                 }
             }
-        }
-
-        //Bing Search APIを使用して画像のURLを取得する
-        private static async Task<List<string>> getSearchImageAsync(string searchWord)
-        {
-            var images = new List<string>();
-            using (var client = new HttpClient())
-            {
-                client.DefaultRequestHeaders.Add("Ocp-Apim-Subscription-Key", _bingApiKey);
-
-                int count = 150;
-                for (int offset = 0; offset <= 300; offset += count)
-                {
-                    var uri = "https://api.cognitive.microsoft.com/bing/v5.0/images/search"
-                        + "?q=" + searchWord
-                        + "&count=" + count
-                        + "&offset=" + offset
-                        + "&mkt=ja-JP";
-
-                    var response = await client.GetAsync(uri);
-                    var json = await response.Content.ReadAsStringAsync();
-                    var jObj = JObject.Parse(json);
-                    JToken value = jObj.SelectToken("value");
-                    images.AddRange(value.Select(q => q["contentUrl"].ToString()).ToList());
-                    await Task.Delay(400);
-                }
-            }
-
-            return images;
         }
 
         //顔の特徴点を比率に変換する
