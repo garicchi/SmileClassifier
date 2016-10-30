@@ -42,11 +42,11 @@ namespace SmileClassifier
         GpioPin _ledPin;
 
         //Cognitive Service Face APIのAPI Keyを入れる
-        string _faceApiKey = "{ your face api key }";
+        string _faceApiKey = "275f7ae3c0ca42fda3eca8bee0956fad";
         //デプロイしたAzure Machine LearningのWeb APIのAPI Keyを入れる
-        string _mlApiKey = "{ your azure ml web api key }";
+        string _mlApiKey = "vdONRbDzchAzdzlmr+MGez+xw67O0uPIrMng1FrKMOiZlr5sWSHus7Ja+NQiDubDc7BrxattCi2fnDGPyCxvYA==";
         //デプロイしたAzure Machine LearningのWeb APIのURLを入れる
-        string _mlWebUrl = "{ your azure ml web api url }";
+        string _mlWebUrl = "https://asiasoutheast.services.azureml.net/subscriptions/25116a6966a94419a84024e51e3fc3ee/services/23115b24669d401b936a44901a754c25/execute?api-version=2.0&format=swagger";
 
         //タクトスイッチをつなげたラズパイのGPIOピン番号を入れる
         int _switchPinId = 21;

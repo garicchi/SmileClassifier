@@ -18,9 +18,9 @@ namespace ImageCollector
     class Program
     {
         //Cognitive Service Bing Image APIのAPI Keyを入れる
-        static string _bingApiKey = "{ your bing image api key }";
+        static string _bingApiKey = "6b92b8aafcf4408fbab7ba3bab0550c8";
         //Cognitive Service Face APIのAPI Keyを入れる
-        static string _faceApiKey = "{ your face api key }";
+        static string _faceApiKey = "275f7ae3c0ca42fda3eca8bee0956fad";
 
         static void Main(string[] args)
         {
