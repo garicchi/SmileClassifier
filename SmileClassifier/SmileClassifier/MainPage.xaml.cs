@@ -115,9 +115,9 @@ namespace SmileClassifier
             _switchPin.ValueChanged += async(sender, arg) =>
             {
                 //ピンの電圧がHighかLowを取得する
-                var pinValue = _switchPin.Read();
+                var pinValue = arg.Edge;
                 //Lowならスイッチが押されたので判定
-                if(pinValue == GpioPinValue.Low)
+                if(pinValue == GpioPinEdge.FallingEdge)
                 {
                     await Dispatcher.RunAsync(CoreDispatcherPriority.Normal,async()=>
                     {

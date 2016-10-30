@@ -24,7 +24,8 @@ namespace ImageCollector
 
         static void Main(string[] args)
         {
-            var start = DateTime.Now;
+            var watch = new Stopwatch();
+            watch.Start();
             var learnDataPath = "data.csv";
 
             using (var writer = new StreamWriter(learnDataPath, false, Encoding.UTF8))
@@ -42,8 +43,9 @@ namespace ImageCollector
                 writeFaceFeaturesAsync(writer, "怒り 写真", "angry").Wait();
                 
             }
-            
-            Console.WriteLine("elapsed time {0}", (DateTime.Now - start).ToString());
+
+            watch.Stop();
+            Console.WriteLine("elapsed time {0}", watch.Elapsed);
             Console.WriteLine("Complete!");
             Console.ReadKey();
         }
@@ -69,8 +71,11 @@ namespace ImageCollector
                     var response = await client.GetAsync(uri);
                     var json = await response.Content.ReadAsStringAsync();
                     var jObj = JObject.Parse(json);
-                    JToken value = jObj.SelectToken("value");
-                    images.AddRange(value.Select(q => q["contentUrl"].ToString()).ToList());
+                    JToken values = jObj.SelectToken("value");
+                    foreach (var val in values)
+                    {
+                        images.Add(val["contentUrl"].ToString());
+                    }
                     await Task.Delay(400);
                 }
             }
