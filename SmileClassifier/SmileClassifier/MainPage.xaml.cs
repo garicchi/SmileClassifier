@@ -108,7 +108,9 @@ namespace SmileClassifier
                     var frameRate = (vprop.FrameRate.Numerator / vprop.FrameRate.Denominator);
                     System.Diagnostics.Debug.WriteLine("{0}: {1}x{2} {3}fps", vprop.Subtype, vprop.Width, vprop.Height, frameRate);
                 }
-                await _mediaCapture.VideoDeviceController.SetMediaStreamPropertiesAsync(MediaStreamType.VideoPreview, vprops[3]);
+                //4番目の設定を使用。環境によって適切なものを選択
+                var selectProp = vprops[3];
+                await _mediaCapture.VideoDeviceController.SetMediaStreamPropertiesAsync(MediaStreamType.VideoPreview, selectProp);
 
                 captureElement.Source = _mediaCapture;
                 await _mediaCapture.StartPreviewAsync();
