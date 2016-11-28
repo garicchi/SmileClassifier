@@ -40,6 +40,7 @@ namespace SmileClassifier
         GpioController _gpioController;
         GpioPin _switchPin;
         GpioPin _ledPin;
+        bool processing;
 
         //Cognitive Service Face APIのAPI Keyを入れる
         string _faceApiKey = "{ your face api key }";
@@ -79,6 +80,7 @@ namespace SmileClassifier
                 //再度Webカメラを起動する
                 await InitCameraAsync();
             };
+            processing = false;
         }
 
         //Webカメラを初期化する
@@ -97,6 +99,17 @@ namespace SmileClassifier
                 //Webカメラのキャプチャーを起動する
                 _mediaCapture = new MediaCapture();
                 await _mediaCapture.InitializeAsync(setting);
+
+                var vprops = _mediaCapture.VideoDeviceController.GetAvailableMediaStreamProperties(MediaStreamType.VideoPreview);
+                //Webカメラの解像度やフレームレートを設定する
+                //うまくWebカメラが動かない場合は解像度やフレームレートを下げる
+                foreach (VideoEncodingProperties vprop in vprops)
+                {
+                    var frameRate = (vprop.FrameRate.Numerator / vprop.FrameRate.Denominator);
+                    System.Diagnostics.Debug.WriteLine("{0}: {1}x{2} {3}fps", vprop.Subtype, vprop.Width, vprop.Height, frameRate);
+                }
+                await _mediaCapture.VideoDeviceController.SetMediaStreamPropertiesAsync(MediaStreamType.VideoPreview, vprops[3]);
+
                 captureElement.Source = _mediaCapture;
                 await _mediaCapture.StartPreviewAsync();
             });
@@ -119,28 +132,38 @@ namespace SmileClassifier
                 //Lowならスイッチが押されたので判定
                 if(pinValue == GpioPinEdge.FallingEdge)
                 {
-                    await Dispatcher.RunAsync(CoreDispatcherPriority.Normal,async()=>
+                    //スイッチの2度押し防止用
+                    if (processing) return;
+                    processing = true;
+                    try
                     {
-                        textStatus.Text = "判定中...";
-                        _ledPin.Write(GpioPinValue.Low);
-                        //笑顔判定をする
-                        var label = await judgeSmileFaceAsync();
+                        await Dispatcher.RunAsync(CoreDispatcherPriority.Normal, async () =>
+                        {
+                            textStatus.Text = "判定中...";
+                            _ledPin.Write(GpioPinValue.Low);
+                            //笑顔判定をする
+                            var label = await judgeSmileFaceAsync();
 
-                        if (label == string.Empty)
-                        {
-                            textStatus.Text = "顔検出に失敗しました";
-                        }
-                        else if (label == "angry")
-                        {
-                            textStatus.Text = "判定結果 = 怒り顔";
-                        }
-                        else if (label == "smile")
-                        {
-                            textStatus.Text = "判定結果 = 笑顔";
-                            //LEDを点灯させる
-                            _ledPin.Write(GpioPinValue.High);
-                        }
-                    });
+                            if (label == string.Empty)
+                            {
+                                textStatus.Text = "顔検出に失敗しました";
+                            }
+                            else if (label == "angry")
+                            {
+                                textStatus.Text = "判定結果 = 怒り顔";
+                            }
+                            else if (label == "smile")
+                            {
+                                textStatus.Text = "判定結果 = 笑顔";
+                                //LEDを点灯させる
+                                _ledPin.Write(GpioPinValue.High);
+                            }
+                        });
+                    }
+                    finally
+                    {
+                        processing = false;
+                    }
                 }
             };
         }
