@@ -208,7 +208,7 @@ namespace SmileClassifier
             stream.Seek(0);
 
             //Face APIを利用して顔の特徴点を取得する
-            var faceClient = new FaceServiceClient(_faceApiKey);
+            var faceClient = new FaceServiceClient(_faceApiKey, "https://westcentralus.api.cognitive.microsoft.com/face/v1.0");
             var faces = await faceClient.DetectAsync(stream.AsStream(), true, true);
             if (faces.Count() == 0)
             {

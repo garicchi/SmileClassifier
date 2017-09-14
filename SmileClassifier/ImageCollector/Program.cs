@@ -86,7 +86,7 @@ namespace ImageCollector
                 try
                 {
                     //Face APIで特徴点を抽出する
-                    var client = new FaceServiceClient(_faceApiKey);
+                    var client = new FaceServiceClient(_faceApiKey, "https://westcentralus.api.cognitive.microsoft.com/face/v1.0");
                     var faces = await client.DetectAsync(url, true, true);
                     await Task.Delay(4000);
                     foreach (var face in faces)
